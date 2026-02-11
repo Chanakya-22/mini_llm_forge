@@ -1,0 +1,11 @@
+torch
+transformers
+accelerate
+peft
+bitsandbytes
+fastapi
+uvicorn
+gunicorn
+pydantic-settings
+pyyaml
+scipy

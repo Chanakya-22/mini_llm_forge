@@ -1,0 +1,36 @@
+# --- Python & Virtual Environments ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+env/
+.pytest_cache/
+
+# --- Environment Variables (Secrets) ---
+# CRITICAL: Never commit .env files containing keys
+config/.env
+.env
+
+# --- AI Models & Heavy Data ---
+# Ignore downloaded base models
+models/
+# Ignore trained output weights (GBs in size)
+model_output/
+# Ignore raw dataset files (if they contain personal info)
+data/*.jsonl
+
+# --- IDE Settings ---
+.vscode/
+.idea/
+
+# --- System Files ---
+.DS_Store
+Thumbs.db
+
+# --- Docker ---
+# Ignore system-specific docker overrides if you have any
+docker-compose.override.yml
+
+# --- Logs ---
+*.log
