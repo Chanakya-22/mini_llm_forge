@@ -5,10 +5,9 @@ from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
     BitsAndBytesConfig,
-    TrainingArguments,
 )
 from peft import LoraConfig
-from trl import SFTTrainer
+from trl import SFTTrainer, SFTConfig
 from src.core.config import settings
 from src.core.logger import logger
 
@@ -49,8 +48,8 @@ def train():
         task_type="CAUSAL_LM",
     )
 
-    # 5. Training Arguments
-    training_args = TrainingArguments(
+    # 5. SFT Configuration (Replaces TrainingArguments)
+    training_args = SFTConfig(
         output_dir="model_output",
         num_train_epochs=3,          # How many times to loop over your data
         per_device_train_batch_size=1,
@@ -60,16 +59,16 @@ def train():
         fp16=True,
         save_strategy="epoch",
         optim="paged_adamw_32bit",   # Saves memory
+        dataset_text_field="text",
+        packing=False,
+        max_length=512,
     )
 
     # 6. The Trainer
     trainer = SFTTrainer(
         model=model,
         train_dataset=dataset,
-        dataset_text_field="text",
-        packing=False,
-        max_seq_length=512,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         args=training_args,
         peft_config=peft_config,
     )
