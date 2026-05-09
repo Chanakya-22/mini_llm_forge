@@ -9,3 +9,5 @@ gunicorn
 pydantic-settings
 pyyaml
 scipy
+datasets
+trl
