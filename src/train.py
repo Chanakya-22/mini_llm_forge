@@ -26,7 +26,7 @@ def train():
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,
         bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=torch.float16,
+        bnb_4bit_compute_dtype=torch.bfloat16,
     )
 
     # 3. Load Base Model
@@ -56,7 +56,7 @@ def train():
         gradient_accumulation_steps=4,
         logging_steps=1,
         learning_rate=2e-4,
-        fp16=True,
+        bf16=True,
         save_strategy="epoch",
         optim="paged_adamw_32bit",   # Saves memory
         dataset_text_field="text",
