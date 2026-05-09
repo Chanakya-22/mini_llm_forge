@@ -67,6 +67,7 @@ def train():
         model=model,
         train_dataset=dataset,
         dataset_text_field="text",
+        packing=False,
         max_seq_length=512,
         tokenizer=tokenizer,
         args=training_args,
