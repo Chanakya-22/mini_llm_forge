@@ -25,7 +25,7 @@ def load_model_and_tokenizer(base_model_name: str, adapter_path: str = None):
     )
 
     # 3. Load Adapter (LoRA) if provided
-    if adapter_path and os.path.exists(adapter_path):
+    if adapter_path and os.path.exists(os.path.join(adapter_path, "adapter_config.json")):
         logger.info(f"Loader: Found adapter at {adapter_path}. Merging...")
         model = PeftModel.from_pretrained(model, adapter_path)
     else:
