@@ -19,7 +19,7 @@ async def chat_completions(request: GenerationRequest):
             temperature=request.temperature
         )
         # Clean response
-        clean_response = response.split("<bot>:")[-1].strip()
+        clean_response = response.split("<bot>:")[-1].split("<human>:")[0].strip()
         
         return GenerationResponse(
             generated_text=clean_response,
