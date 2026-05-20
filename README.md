@@ -1,4 +1,4 @@
-# Mini-LLM-Forge 🧠
+# Mini-LLM-Forge 
 
 A containerized, modular MLOps pipeline designed for the efficient fine-tuning (QLoRA) and deployment of lightweight Large Language Models (1B-3B parameters) on consumer-grade hardware.
 
@@ -6,7 +6,7 @@ This project bridges the gap between experimental Jupyter notebooks and producti
 
 ---
 
-## 🏗️ System Architecture
+##  System Architecture
 
 The forge operates on a decoupled architecture, allowing hot-swapping of models and frontend interfaces without rebuilding the core engine.
 
@@ -17,7 +17,7 @@ The forge operates on a decoupled architecture, allowing hot-swapping of models 
 
 ---
 
-## 🛠️ Tech Stack & Dependencies
+##  Tech Stack & Dependencies
 
 **Core Engine:**
 * PyTorch (Hardware-accelerated via `bfloat16`)
@@ -36,7 +36,7 @@ The forge operates on a decoupled architecture, allowing hot-swapping of models 
 
 ---
 
-## 📂 Project Structure
+##  Project Structure
 
 ```text
 mini-llm-forge/
@@ -59,7 +59,7 @@ mini-llm-forge/
 ├── Dockerfile           # Runtime environment definition
 └── requirements.txt     # Python dependencies
 
-🚀 Quick Start Guide
+
 Follow these steps to build, train, and serve your own custom LLM from scratch.
 
 1. Prerequisites
@@ -130,7 +130,7 @@ pip install streamlit requests
 python -m streamlit run src/frontend/ui.py
 Access the chat interface at: http://localhost:8501
 
-🚧 Current Limitations & Roadmap
+ Current Limitations & Roadmap
 Data Scarcity: The model currently relies on a micro-dataset. To prevent base-model hallucinations, the custom_data.jsonl file must be expanded significantly.
 
 Context Window: Currently hard-gated at 512 tokens during training for memory efficiency.
