@@ -36,9 +36,13 @@ The forge operates on a decoupled architecture, allowing hot-swapping of models 
 
 ---
 
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
 ##  Project Structure
 
-```text
 mini-llm-forge/
 ├── config/              
 │   ├── .env             # (Git-ignored) Environment configurations
@@ -59,7 +63,7 @@ mini-llm-forge/
 ├── Dockerfile           # Runtime environment definition
 └── requirements.txt     # Python dependencies
 
-
+ Quick Start Guide
 Follow these steps to build, train, and serve your own custom LLM from scratch.
 
 1. Prerequisites
