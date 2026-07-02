@@ -34,15 +34,14 @@ class LLMForgeTrainer:
     configuration, model loading, training execution, and adapter export.
     """
 
-    def __init__(self, dataset_path: str = "data/chatml_data.jsonl", output_dir: str = "model_output") -> None:
+    def __init__(self, dataset_path: str = "data/chatml_data.jsonl") -> None:
         """Initialize the trainer with dataset and output paths.
 
         Args:
             dataset_path: Path to the JSONL training dataset.
-            output_dir: Directory where the adapter and tokenizer artifacts will be saved.
         """
         self.dataset_path = Path(dataset_path)
-        self.output_dir = Path(output_dir)
+        self.output_dir = Path(settings.adapter_path)
         self.model: Optional[Any] = None
         self.tokenizer: Optional[Any] = None
         self.trainer: Optional[SFTTrainer] = None
@@ -80,10 +79,10 @@ class LLMForgeTrainer:
         Returns:
             A configured Hugging Face tokenizer instance.
         """
-        tokenizer = AutoTokenizer.from_pretrained(settings.BASE_MODEL_NAME)
+        tokenizer = AutoTokenizer.from_pretrained(settings.base_model_name)
         chat_template = (
             "{% for message in messages %}"
-            "{{'<|im_start|>' + message['role'] + '\\n' + message['content'] + '<|im_end|>\\n'}}"
+            "{{ '<|im_start|>' + message['role'] + '\\n' + message['content'] + '<|im_end|>\\n' }}"
             "{% endfor %}"
             "{% if add_generation_prompt %}{{ '<|im_start|>assistant\\n' }}{% endif %}"
         )
@@ -148,7 +147,7 @@ class LLMForgeTrainer:
             eval_steps=50,
             save_steps=50,
             optim="paged_adamw_32bit",
-            max_seq_length=512,
+            max_length=512,  # Correctly updated for TRL > 0.15
             packing=False,
             lr_scheduler_type="cosine",
         )
@@ -161,7 +160,7 @@ class LLMForgeTrainer:
         """
         quantization_config = self._build_quantization_config()
         model = AutoModelForCausalLM.from_pretrained(
-            settings.BASE_MODEL_NAME,
+            settings.base_model_name,
             quantization_config=quantization_config,
             device_map="auto",
         )
@@ -188,7 +187,7 @@ class LLMForgeTrainer:
             model=model,
             train_dataset=self.dataset,
             eval_dataset=None,
-            processing_class=tokenizer,
+            tokenizer=tokenizer,
             args=self._build_training_config(),
             peft_config=self._build_lora_config(),
         )
