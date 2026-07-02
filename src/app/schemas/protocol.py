@@ -46,11 +46,10 @@ class ChatMessage(BaseModel):
             A trimmed string that is non-empty and within the allowed length.
 
         Raises:
-            TypeError: If the content is not a string.
-            ValueError: If the content is empty or exceeds the maximum length.
+            ValueError: If the content is not a string, empty, or exceeds the maximum length.
         """
         if not isinstance(value, str):
-            raise TypeError("Message content must be provided as a string.")
+            raise ValueError("Message content must be provided as a string.")
 
         normalized = value.strip()
         if not normalized:
@@ -76,6 +75,7 @@ class GenerationRequest(BaseModel):
     messages: List[ChatMessage] = Field(
         ...,
         min_length=1,
+        max_length=100,
         description="An ordered list of ChatML messages representing the conversation history.",
     )
     max_new_tokens: int = Field(
@@ -114,6 +114,7 @@ class GenerationRequest(BaseModel):
     )
     stop_sequences: List[str] = Field(
         default_factory=lambda: ["<|im_end|>"],
+        max_length=20,
         description="A list of stop sequences that terminate generation when encountered.",
     )
 
@@ -135,6 +136,24 @@ class GenerationRequest(BaseModel):
 
         if self.messages[-1].role != "user":
             raise ValueError("The final message must be from the user to request generation.")
+
+        return self
+
+    @model_validator(mode="after")
+    def validate_sampling_parameters(self) -> "GenerationRequest":
+        """Ensure temperature and top_p are valid when sampling is enabled.
+
+        Returns:
+            The validated request instance.
+
+        Raises:
+            ValueError: If sampling parameters are invalid for the chosen mode.
+        """
+        if self.do_sample:
+            if self.temperature <= 0.0:
+                raise ValueError("Temperature must be strictly positive when do_sample is True.")
+            if self.top_p <= 0.0:
+                raise ValueError("top_p must be strictly positive when do_sample is True.")
 
         return self
 

@@ -23,22 +23,22 @@ router = APIRouter()
 
 
 class TokenStopCriteria(StoppingCriteria):
-    """Halts generation as soon as a configured stop token is emitted.
+    """Halts generation when a configured stop token sequence is emitted.
 
-    This criterion inspects the latest generated token ID during decoding and
-    returns ``True`` immediately when the model emits a configured stop token.
+    This criterion inspects the trailing token subsequence during decoding and
+    returns ``True`` when the model emits a configured stop sequence.
     It is designed for use with Hugging Face ``model.generate`` calls and helps
     enforce strict conversational termination semantics.
     """
 
-    def __init__(self, stop_token_ids: Optional[List[int]] = None) -> None:
-        """Initialize the criteria with explicit token IDs to stop on.
+    def __init__(self, stop_sequences: Optional[List[List[int]]] = None) -> None:
+        """Initialize the criteria with explicit token ID sequences to stop on.
 
         Args:
-            stop_token_ids: A list of token IDs that should terminate generation.
+            stop_sequences: A list of token ID sequences that should terminate generation.
         """
         super().__init__()
-        self.stop_token_ids = set(stop_token_ids or [])
+        self.stop_sequences = stop_sequences or []
 
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **_: object) -> bool:
         """Check whether generation should stop at the current token step.
@@ -48,14 +48,19 @@ class TokenStopCriteria(StoppingCriteria):
             scores: The logits for the current token step.
 
         Returns:
-            ``True`` if the latest generated token is a stop token, otherwise
+            ``True`` if the trailing generated tokens match a stop sequence, otherwise
             ``False``.
         """
-        if not self.stop_token_ids:
+        if not self.stop_sequences:
             return False
 
-        last_token_id = int(input_ids[0, -1].item())
-        return last_token_id in self.stop_token_ids
+        for stop_seq in self.stop_sequences:
+            seq_len = len(stop_seq)
+            if input_ids.shape[1] >= seq_len:
+                trailing_tokens = input_ids[0, -seq_len:].tolist()
+                if trailing_tokens == stop_seq:
+                    return True
+        return False
 
 
 @router.post("/completions", response_model=GenerationResponse)
@@ -90,19 +95,19 @@ async def chat_completions(request: GenerationRequest) -> GenerationResponse:
         input_ids = tokenizer(prompt_text, return_tensors="pt").input_ids
         input_ids = input_ids.to(model.device if hasattr(model, "device") else torch.device("cpu"))
 
-        stop_token_ids = set()
+        stop_sequences = []
         for stop_sequence in request.stop_sequences:
             if not stop_sequence:
                 continue
             token_ids = tokenizer.encode(stop_sequence, add_special_tokens=False)
             if token_ids:
-                stop_token_ids.update(token_ids)
+                stop_sequences.append(token_ids)
 
         if getattr(tokenizer, "eos_token_id", None) is not None:
-            stop_token_ids.add(int(tokenizer.eos_token_id))
+            stop_sequences.append([int(tokenizer.eos_token_id)])
 
         stopping_criteria = StoppingCriteriaList(
-            [TokenStopCriteria(list(stop_token_ids))]
+            [TokenStopCriteria(stop_sequences)]
         )
 
         start_time = time.perf_counter()
@@ -133,7 +138,25 @@ async def chat_completions(request: GenerationRequest) -> GenerationResponse:
                 break
 
         tokens_generated = int(generated_token_ids.shape[0])
-        finish_reason = "stop" if tokens_generated < request.max_new_tokens else "length"
+
+        # Check if generation ended due to a stop condition
+        stopped_early = False
+        if tokens_generated > 0:
+            # Check EOS token
+            last_token_id = int(generated_token_ids[-1].item())
+            if getattr(tokenizer, "eos_token_id", None) is not None and last_token_id == int(tokenizer.eos_token_id):
+                stopped_early = True
+            # Check stop sequences
+            if not stopped_early:
+                for stop_seq in stop_sequences:
+                    seq_len = len(stop_seq)
+                    if tokens_generated >= seq_len:
+                        trailing = generated_token_ids[-seq_len:].tolist()
+                        if trailing == stop_seq:
+                            stopped_early = True
+                            break
+
+        finish_reason = "stop" if stopped_early or tokens_generated < request.max_new_tokens else "length"
 
         return GenerationResponse(
             generated_text=generated_text,
@@ -151,10 +174,11 @@ async def chat_completions(request: GenerationRequest) -> GenerationResponse:
             },
         )
     except Exception as exc:
+        from src.core.logger import logger
+        logger.exception("Generation failed with unexpected error: %s", exc)
         return JSONResponse(
             status_code=500,
             content={
                 "detail": "Generation failed due to an internal server error.",
-                "error": str(exc),
             },
         )

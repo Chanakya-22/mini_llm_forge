@@ -16,8 +16,8 @@ class LLMEngine:
         logger.info("Engine: Requesting model from loader...")
         
         self.model, self.tokenizer = load_model_and_tokenizer(
-            base_model_name=settings.BASE_MODEL_NAME,
-            adapter_path=settings.ADAPTER_PATH
+            base_model_name=settings.base_model_name,
+            adapter_path=settings.adapter_path
         )
         
         logger.info("Engine: Model is ready for inference.")

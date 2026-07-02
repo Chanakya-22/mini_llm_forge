@@ -27,10 +27,18 @@ def migrate_legacy_data(input_file: str, output_file: str):
                 if "<human>:" not in raw_text or "<bot>:" not in raw_text:
                     logging.warning(f"Skipping line {line_num}: Invalid legacy format.")
                     continue
-                
+
                 parts = raw_text.split("<bot>:")
+                if len(parts) > 2:
+                    logging.warning(f"Line {line_num}: Multi-turn conversation detected with {len(parts)-1} bot turns. Using only the last turn.")
+
+                # Extract the last assistant turn
                 user_part = parts[0].replace("<human>:", "").strip()
-                assistant_part = parts[1].strip()
+                assistant_part = parts[-1].strip() if len(parts) > 1 else ""
+
+                if not user_part or not assistant_part:
+                    logging.warning(f"Skipping line {line_num}: Empty user or assistant content after parsing.")
+                    continue
                 
                 # Construct ChatML Schema
                 chatml_record = {

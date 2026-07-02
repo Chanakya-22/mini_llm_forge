@@ -34,28 +34,42 @@ class LLMForgeTrainer:
     configuration, model loading, training execution, and adapter export.
     """
 
-    def __init__(self, dataset_path: str = "data/chatml_data.jsonl") -> None:
+    def __init__(self, dataset_path: str = "data/chatml_data.jsonl", output_dir: Optional[str] = None) -> None:
         """Initialize the trainer with dataset and output paths.
 
         Args:
             dataset_path: Path to the JSONL training dataset.
+            output_dir: Optional output directory for the trained adapter. If not provided,
+                uses settings.adapter_path or defaults to "adapters/default".
+
+        Raises:
+            ValueError: If no valid output directory can be determined.
         """
         self.dataset_path = Path(dataset_path)
-        self.output_dir = Path(settings.adapter_path)
+
+        if output_dir:
+            self.output_dir = Path(output_dir)
+        elif settings.adapter_path:
+            self.output_dir = Path(settings.adapter_path)
+        else:
+            self.output_dir = Path("adapters/default")
+            logger.warning("No adapter_path configured; using default output directory: %s", self.output_dir)
+
         self.model: Optional[Any] = None
         self.tokenizer: Optional[Any] = None
         self.trainer: Optional[SFTTrainer] = None
         self.dataset: Optional[Dataset] = None
+        self.eval_dataset: Optional[Dataset] = None
 
     def _setup_logging(self) -> None:
         """Configure the module logger for training execution."""
         logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
-    def _load_dataset(self) -> Dataset:
+    def _load_dataset(self) -> Tuple[Dataset, Dataset]:
         """Load and split the conversational JSONL dataset.
 
         Returns:
-            A ``Dataset`` object containing the training split.
+            A tuple of (train_dataset, eval_dataset).
 
         Raises:
             FileNotFoundError: If the dataset file does not exist.
@@ -70,8 +84,9 @@ class LLMForgeTrainer:
 
         split_dataset = dataset.train_test_split(test_size=0.1, seed=42)
         self.dataset = split_dataset["train"]
-        logger.info("Loaded %s training examples and %s validation examples.", len(self.dataset), len(split_dataset["test"]))
-        return self.dataset
+        self.eval_dataset = split_dataset["test"]
+        logger.info("Loaded %s training examples and %s validation examples.", len(self.dataset), len(self.eval_dataset))
+        return self.dataset, self.eval_dataset
 
     def _configure_tokenizer(self) -> Any:
         """Load and configure the tokenizer for ChatML formatting.
@@ -186,8 +201,8 @@ class LLMForgeTrainer:
         return SFTTrainer(
             model=model,
             train_dataset=self.dataset,
-            eval_dataset=None,
-            tokenizer=tokenizer,
+            eval_dataset=self.eval_dataset,
+            processing_class=tokenizer,
             args=self._build_training_config(),
             peft_config=self._build_lora_config(),
         )
