@@ -24,11 +24,16 @@ if prompt := st.chat_input("Ask me anything about my projects or skills..."):
     st.chat_message("human").markdown(prompt)
     st.session_state.messages.append({"role": "human", "content": prompt})
 
-    # 2. Format the exact payload your FastAPI server expects
+    # 2. Format the payload using the backend's current chat schema
     payload = {
         "messages": st.session_state.messages,
-        "max_tokens": 128,
-        "temperature": 0.7
+        "max_new_tokens": 128,
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "top_k": 50,
+        "repetition_penalty": 1.1,
+        "do_sample": True,
+        "stop_sequences": ["<|im_end|>"],
     }
 
     # 3. Request the answer from the Docker container
@@ -36,7 +41,8 @@ if prompt := st.chat_input("Ask me anything about my projects or skills..."):
         with st.spinner("Thinking..."):
             try:
                 response = requests.post(API_URL, json=payload)
-                response.raise_for_status() # Check for 500 errors
+                print(response.text)
+                response.raise_for_status()  # Check for 500 errors
                 
                 bot_reply = response.json().get("generated_text", "Error: No response generated.")
                 st.markdown(bot_reply)
