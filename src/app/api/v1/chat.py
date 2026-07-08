@@ -86,14 +86,12 @@ async def chat_completions(request: GenerationRequest) -> GenerationResponse:
         tokenizer = engine.tokenizer
         model = engine.model
 
-        prompt_text = tokenizer.apply_chat_template(
+        input_ids = tokenizer.apply_chat_template(
             [message.model_dump() for message in request.messages],
-            tokenize=False,
+            tokenize=True,
             add_generation_prompt=True,
-        )
-
-        input_ids = tokenizer(prompt_text, return_tensors="pt").input_ids
-        input_ids = input_ids.to(model.device if hasattr(model, "device") else torch.device("cpu"))
+            return_tensors="pt",
+        ).to(model.device if hasattr(model, "device") else torch.device("cpu"))
 
         stop_sequences = []
         for stop_sequence in request.stop_sequences:

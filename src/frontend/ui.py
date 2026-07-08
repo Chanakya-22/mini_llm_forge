@@ -21,13 +21,24 @@ for message in st.session_state.messages:
 # The Chat Input Box
 if prompt := st.chat_input("Ask me anything about my projects or skills..."):
     # 1. Show user message
-    st.chat_message("human").markdown(prompt)
-    st.session_state.messages.append({"role": "human", "content": prompt})
+    st.chat_message("user").markdown(prompt)
+    st.session_state.messages.append({"role": "user", "content": prompt})
 
-    # 2. Format the payload using the backend's current chat schema
+    # 2. Format the payload using the backend's strict chat schema
+    api_messages = [
+        {
+            "role": "system",
+            "content": "You are a helpful, concise AI assistant. Always answer directly and naturally. Never output JSON or code unless explicitly asked.",
+        }
+    ]
+    api_messages.extend(
+        {"role": message["role"], "content": message["content"]}
+        for message in st.session_state.messages
+    )
+
     payload = {
-        "messages": st.session_state.messages,
-        "max_new_tokens": 128,
+        "messages": api_messages,
+        "max_new_tokens": 256,
         "temperature": 0.7,
         "top_p": 0.9,
         "top_k": 50,
@@ -37,7 +48,7 @@ if prompt := st.chat_input("Ask me anything about my projects or skills..."):
     }
 
     # 3. Request the answer from the Docker container
-    with st.chat_message("bot"):
+    with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
             try:
                 response = requests.post(API_URL, json=payload)
@@ -47,8 +58,8 @@ if prompt := st.chat_input("Ask me anything about my projects or skills..."):
                 bot_reply = response.json().get("generated_text", "Error: No response generated.")
                 st.markdown(bot_reply)
                 
-                # Save bot reply to history
-                st.session_state.messages.append({"role": "bot", "content": bot_reply})
+                # Save assistant reply to history
+                st.session_state.messages.append({"role": "assistant", "content": bot_reply})
             
             except requests.exceptions.ConnectionError:
                 st.error("🚨 Backend is offline! Make sure your Docker container is running on port 8000.")
