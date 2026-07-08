@@ -217,7 +217,7 @@ class LLMForgeTrainer:
         logger.info("Starting ChatML training pipeline...")
 
         try:
-            self.dataset = self._load_dataset()
+            self.dataset, self.eval_dataset = self._load_dataset()
             self.model, self.tokenizer = self._load_model_and_tokenizer()
             self.trainer = self._build_trainer(self.model, self.tokenizer)
 
