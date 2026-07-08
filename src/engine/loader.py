@@ -1,36 +1,45 @@
+import logging
 import torch
-import os
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from peft import PeftModel
-from src.core.logger import logger
 
-def load_model_and_tokenizer(base_model_name: str, adapter_path: str = None):
+logger = logging.getLogger(__name__)
+
+def load_model_and_tokenizer(base_model_name: str, adapter_path: str):
     """
-    Loads the model and tokenizer with 4-bit quantization support if available.
-    Returns: (model, tokenizer)
+    Loads the quantized base model, resizes embeddings to match the fine-tuned
+    tokenizer, and merges the LoRA adapter for inference.
     """
-    logger.info(f"Loader: Preparing to load {base_model_name}...")
+    logger.info(f"Loader: Preparing tokenizer from {adapter_path}...")
+    # CRITICAL FIX: Load the tokenizer from the adapter path, because 
+    # that is where our newly added <|im_start|> tokens are saved!
+    tokenizer = AutoTokenizer.from_pretrained(adapter_path)
     
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    # Configure 4-bit Quantization
+    bnb_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_compute_dtype=torch.bfloat16,
+        bnb_4bit_quant_type="nf4",
+    )
     
-    # 1. Load Tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(base_model_name)
-    
-    # 2. Load Base Model
-    # Note: In a real prod env, you might add BitsAndBytesConfig here for 4-bit loading
+    logger.info(f"Loader: Preparing to load base model {base_model_name}...")
     model = AutoModelForCausalLM.from_pretrained(
         base_model_name,
-        torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+        quantization_config=bnb_config,
         device_map="auto"
     )
-
-    # 3. Load Adapter (LoRA) if provided
-    if adapter_path and os.path.exists(os.path.join(adapter_path, "adapter_config.json")):
-        logger.info(f"Loader: Found adapter at {adapter_path}. Merging...")
-        model = PeftModel.from_pretrained(model, adapter_path)
-    else:
-        logger.info("Loader: No adapter found or path invalid. Using base model.")
-
-    model.eval() # Set to inference mode (crucial!)
+    
+    # CRITICAL FIX: Resize the base model's embeddings BEFORE applying the adapter
+    # If the base model has 32000 tokens, but the tokenizer has 32002, we must resize.
+    if len(tokenizer) != model.config.vocab_size:
+        logger.info(f"Loader: Resizing model embeddings from {model.config.vocab_size} to {len(tokenizer)}")
+        model.resize_token_embeddings(len(tokenizer))
+        
+    logger.info(f"Loader: Found adapter at {adapter_path}. Merging...")
+    # Now that the shapes match (32002 == 32002), we can safely load the adapter
+    model = PeftModel.from_pretrained(model, adapter_path)
+    
+    # Put the model in evaluation mode (turns off dropout layers, etc.)
+    model.eval()
     
     return model, tokenizer

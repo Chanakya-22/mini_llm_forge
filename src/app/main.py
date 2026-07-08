@@ -13,11 +13,11 @@ async def lifespan(app: FastAPI):
     logger.info("Server Shutting Down...")
 
 app = FastAPI(
-    title=settings.PROJECT_NAME,
+    title=settings.project_name,
     lifespan=lifespan
 )
 
-app.include_router(chat.router, prefix=settings.API_V1_STR)
+app.include_router(chat.router, prefix=settings.api_v1_str)
 
 @app.get("/health")
 def health():
